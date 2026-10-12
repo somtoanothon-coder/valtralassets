@@ -7,8 +7,9 @@ const nextConfig = {
     // Lint is run separately in CI; a lint warning must never break a production deploy.
     ignoreDuringBuilds: true,
   },
-  // The embedded development database ships WASM that must not be bundled.
-  serverExternalPackages: ["@electric-sql/pglite"],
+  // The embedded development database ships WASM and the Postgres driver opens
+  // TCP sockets, so neither may be bundled by the server compiler.
+  serverExternalPackages: ["@electric-sql/pglite", "postgres"],
 };
 
 export default nextConfig;

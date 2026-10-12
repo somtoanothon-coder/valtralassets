@@ -60,7 +60,6 @@ function LivePriceCard({ assets }: { assets: MarketAsset[] }) {
   }, [btc?.price]);
 
   const up = (btc?.change24h ?? 0) >= 0;
-  const series = history.length > 1 ? history : [83100, 83210, 83140, 83380, 83442];
 
   const rows = [btc, eth, eur].filter(Boolean) as MarketAsset[];
 
@@ -97,13 +96,13 @@ function LivePriceCard({ assets }: { assets: MarketAsset[] }) {
           <div className="numeric text-[30px] font-extrabold leading-none text-brand-100 sm:text-[34px]">
             {btc
               ? `$${btc.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-              : "$83,442.00"}
+              : "—"}
           </div>
-          <span className="mb-1 text-[11px] font-medium text-brand-300/60">24h range</span>
+          <span className="mb-1 text-[11px] font-medium text-brand-300/60">Session</span>
         </div>
 
         <div className="mt-3">
-          <Sparkline values={series} up={up} />
+          <Sparkline values={history} up={up} />
         </div>
 
         <div className="mt-4 space-y-1.5">

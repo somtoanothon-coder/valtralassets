@@ -4,33 +4,52 @@ import postgres from "postgres";
 /**
  * Database access layer.
  *
- * Deployed environments use Neon serverless Postgres, configured through
- * DATABASE_URL, or Netlify Database's standard Postgres connection through
- * NETLIFY_DB_URL. Outside production, when no connection string is present,
- * the app falls back to an embedded Postgres (PGlite) persisted under `.data/`.
- * The fallback is never used in production.
+ * Works with any PostgreSQL server. A connection string set by the operator
+ * wins; otherwise Netlify Database's `NETLIFY_DB_URL` is used, which the
+ * platform injects for the project's active branch. Neon endpoints use Neon's
+ * HTTP driver; every other host (Netlify Database, Supabase, Railway, local
+ * Postgres) uses the standard wire protocol. Outside production, when no
+ * connection string is present, the app falls back to an embedded Postgres
+ * (PGlite) persisted under `.data/`. The fallback is never used in production.
  */
 
 let _sql: NeonQueryFunction<false, false> | null = null;
-let _netlifySql: ReturnType<typeof postgres> | null = null;
+let _postgresSql: ReturnType<typeof postgres> | null = null;
 let _schemaReady: Promise<void> | null = null;
 
 type Param = string | number | boolean | null | Date;
 
-function configuredUrl(): string | null {
+/** A connection string deliberately configured by the operator. */
+function explicitUrl(): string | null {
   const url =
-    process.env.NETLIFY_DB_URL ||
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL ||
     process.env.NEON_DATABASE_URL ||
     process.env.NETLIFY_DATABASE_URL ||
     "";
-  return url.trim() ? url.trim() : null;
+  return url.trim() || null;
 }
 
-function usesNetlifyDatabase(): boolean {
-  const netlifyUrl = process.env.NETLIFY_DB_URL?.trim();
-  return Boolean(netlifyUrl && configuredUrl() === netlifyUrl);
+/** Injected by Netlify when a Netlify Database is connected to the project. */
+function netlifyDatabaseUrl(): string | null {
+  const url = process.env.NETLIFY_DB_URL || "";
+  return url.trim() || null;
+}
+
+export function configuredUrl(): string | null {
+  return explicitUrl() ?? netlifyDatabaseUrl();
+}
+
+/**
+ * Neon's serverless driver speaks Neon's HTTP protocol and only works against
+ * Neon endpoints, so it is used only for those hosts.
+ */
+function usesNeonDriver(url: string): boolean {
+  try {
+    return /(^|\.)neon\.tech$/i.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -92,12 +111,31 @@ async function embeddedClient(): Promise<EmbeddedClient> {
 }
 
 /**
+ * Lazily created pool for standard wire-protocol Postgres servers. `prepare`
+ * is disabled so pooled endpoints (Netlify Database, pgbouncer) keep working.
+ */
+function postgresClient(url: string) {
+  if (!_postgresSql) {
+    _postgresSql = postgres(url, {
+      max: 1,
+      connect_timeout: 15,
+      idle_timeout: 20,
+      max_lifetime: 60 * 10,
+      prepare: false,
+    });
+  }
+  return _postgresSql;
+}
+
+/**
  * Returns a tagged-template SQL function bound to Neon. Prefer `query()` for
  * anything that needs parameters from untrusted input.
  */
 export function sql() {
   const url = configuredUrl();
-  if (!url || usesLocalDatabase()) throw new DatabaseNotConfiguredError();
+  if (!url || usesLocalDatabase() || !usesNeonDriver(url)) {
+    throw new DatabaseNotConfiguredError();
+  }
   if (!_sql) _sql = neon(url);
   return _sql;
 }
@@ -125,23 +163,14 @@ export async function query<T = Record<string, unknown>>(
     const result = await db.query(text, params);
     return result.rows as T[];
   }
-  if (usesNetlifyDatabase()) {
-    const url = configuredUrl();
-    if (!url) throw new DatabaseNotConfiguredError();
-    if (!_netlifySql) {
-      _netlifySql = postgres(url, {
-        max: 1,
-        connect_timeout: 10,
-        idle_timeout: 20,
-        prepare: false,
-      });
-    }
-    const rows = await _netlifySql.unsafe(text, params);
-    return rows as unknown as T[];
+  const url = configuredUrl();
+  if (!url) throw new DatabaseNotConfiguredError();
+  if (usesNeonDriver(url)) {
+    const rows = (await sql()(text, params)) as unknown as T[];
+    return rows;
   }
-  const client = sql();
-  const rows = (await client(text, params)) as unknown as T[];
-  return rows;
+  const rows = await postgresClient(url).unsafe(text, params);
+  return rows as unknown as T[];
 }
 
 export async function queryOne<T = Record<string, unknown>>(

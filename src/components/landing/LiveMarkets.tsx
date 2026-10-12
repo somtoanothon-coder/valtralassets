@@ -101,8 +101,12 @@ export function LiveMarkets({ initial }: { initial: MarketAsset[] }) {
             <div className="flex items-center gap-3">
               <span className="hidden items-center gap-1.5 text-[11.5px] font-medium text-brand-300/60 sm:flex">
                 <RefreshCw size={12} className={live ? "text-emerald-400" : "text-amber-400"} />
-                {live ? "Streaming" : "Cached"} ·{" "}
-                {new Date(updatedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                {updatedAt
+                  ? `${live ? "Streaming" : "Cached"} · ${new Date(updatedAt).toLocaleTimeString(
+                      "en-GB",
+                      { hour: "2-digit", minute: "2-digit", second: "2-digit" },
+                    )}`
+                  : "Connecting…"}
               </span>
               <div className="relative">
                 <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-300/50" />

@@ -16,10 +16,17 @@ export async function GET() {
     }
   }
 
+  const adminConfigured = Boolean(
+    process.env.ADMIN_EMAIL?.trim() && (process.env.ADMIN_PASSWORD || "").length >= 8,
+  );
+
   return NextResponse.json({
     ok: database !== "unavailable",
     service: "valtra-assets",
     database,
+    // ADMIN_EMAIL + ADMIN_PASSWORD (min 8 chars) are what create/promote the
+    // administrator account. Without both, /admin is unreachable.
+    admin: adminConfigured ? "configured" : "missing",
     mailer: mailerConfigured() ? "configured" : "missing",
     time: new Date().toISOString(),
   }, { status: database === "unavailable" ? 503 : 200 });

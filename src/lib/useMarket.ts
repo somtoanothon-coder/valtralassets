@@ -15,7 +15,9 @@ const POLL_MS = 4000;
 export function useMarket(initial: MarketAsset[]) {
   const [assets, setAssets] = useState<MarketAsset[]>(initial);
   const [live, setLive] = useState(false);
-  const [updatedAt, setUpdatedAt] = useState<number>(() => Date.now());
+  // Null until the first client fetch resolves. Rendering a clock during SSR
+  // would make the server and client markup disagree, so it starts empty.
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const stopped = useRef(false);
 
   useEffect(() => {
