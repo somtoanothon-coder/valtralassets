@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { SignupForm } from "@/components/ui/SignupForm";
+import { SetupNotice } from "@/components/ui/SetupNotice";
 import { getPlan } from "@/lib/plans";
+import { isDatabaseConfigured } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "Create Your Account",
@@ -28,6 +30,8 @@ export default async function SignupPage({
           finish, plus the ability to fund your wallet and start earning straight away.
         </p>
       </div>
+
+      <SetupNotice databaseReady={isDatabaseConfigured()} />
 
       <SignupForm presetPlan={plan ? plan.name : null} />
     </div>

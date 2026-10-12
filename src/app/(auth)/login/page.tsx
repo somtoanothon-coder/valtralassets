@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { AuthTabs } from "@/components/ui/AuthClient";
 import { LoginForm } from "@/components/ui/AuthClient";
+import { SetupNotice } from "@/components/ui/SetupNotice";
+import { isDatabaseConfigured } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "Sign In",
@@ -8,9 +10,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
+// Read on every request so connecting a database takes effect immediately.
+export const dynamic = "force-dynamic";
+
 export default function LoginPage() {
   return (
     <div className="animate-rise rounded-3xl border border-white/[0.09] bg-ink-800/70 p-6 shadow-card backdrop-blur-xl sm:p-8">
+      <SetupNotice databaseReady={isDatabaseConfigured()} />
+
       <AuthTabs mode="login" />
 
       <div className="mt-7">
