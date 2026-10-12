@@ -4,6 +4,7 @@ import {
   isDatabaseConfigured,
   query,
   queryOne,
+  writeAudit,
   type InvestmentRow,
   type NftHoldingRow,
   type TransactionRow,
@@ -165,5 +166,54 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
   } catch (error) {
     console.error("[admin:user:patch]", error);
     return NextResponse.json({ ok: false, error: "Could not update that customer." }, { status: 500 });
+  }
+}
+
+/**
+ * Admin: permanently remove a customer and everything that belongs to them.
+ * Sessions, transactions, investments, holdings and rate-limit rows are
+ * removed by the table-level cascade; audit entries are retained with the
+ * actor cleared so the platform keeps a record of the action.
+ */
+export async function DELETE(_request: Request, ctx: { params: Promise<{ id: string }> }) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ ok: false, error: "Not authorised." }, { status: 403 });
+  if (!isDatabaseConfigured()) {
+    return NextResponse.json({ ok: false, error: "Database not connected." }, { status: 503 });
+  }
+
+  const { id } = await ctx.params;
+
+  if (id === admin.id) {
+    return NextResponse.json(
+      { ok: false, error: "You cannot delete your own account." },
+      { status: 422 },
+    );
+  }
+
+  try {
+    await ensureSchema();
+
+    const existing = await queryOne<UserRow>(`SELECT * FROM users WHERE id = $1 LIMIT 1`, [id]);
+    if (!existing) {
+      return NextResponse.json({ ok: false, error: "Customer not found." }, { status: 404 });
+    }
+    if (existing.role === "admin") {
+      return NextResponse.json(
+        { ok: false, error: "Remove administrator rights before deleting this account." },
+        { status: 422 },
+      );
+    }
+
+    await query(`DELETE FROM users WHERE id = $1`, [id]);
+    await writeAudit(admin.id, "admin.user.delete", "user", id, {
+      accountId: existing.account_id,
+      email: existing.email,
+    });
+
+    return NextResponse.json({ ok: true, accountId: existing.account_id });
+  } catch (error) {
+    console.error("[admin:user:delete]", error);
+    return NextResponse.json({ ok: false, error: "Could not delete that customer." }, { status: 500 });
   }
 }

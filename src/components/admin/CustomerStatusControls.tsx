@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import clsx from "clsx";
-import { CircleCheck, CircleX, Loader2, ShieldCheck, Shield } from "@/components/ui/icons";
+import { CircleCheck, CircleX, Loader2, ShieldCheck, Shield, Trash2 } from "@/components/ui/icons";
 
 type Props = {
   userId: string;
@@ -18,6 +18,8 @@ export function CustomerStatusControls({ userId, status, role, isSelf }: Props) 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const suspended = status === "suspended";
   const isAdmin = role === "admin";
@@ -49,6 +51,29 @@ export function CustomerStatusControls({ userId, status, role, isSelf }: Props) 
       router.refresh();
     } catch {
       setError("Could not reach the server. Try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function remove() {
+    setBusy("delete");
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
+      const data = (await res.json()) as { ok?: boolean; error?: string; accountId?: string };
+      if (!res.ok || !data.ok) {
+        setError(data.error || "That account could not be deleted.");
+        setConfirmingDelete(false);
+        return;
+      }
+      // The profile now points at a deleted record, so leave the page.
+      router.push("/admin/users");
+      router.refresh();
+    } catch {
+      setError("Could not reach the server. Try again.");
+      setConfirmingDelete(false);
     } finally {
       setBusy(null);
     }
@@ -107,11 +132,51 @@ export function CustomerStatusControls({ userId, status, role, isSelf }: Props) 
           )}
           {isAdmin ? "Remove admin rights" : "Make administrator"}
         </button>
+
+        {!isSelf && !isAdmin && (
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => setConfirmingDelete(true)}
+            className={clsx("btn-danger px-5 py-2.5 text-[13px]", busy !== null && "opacity-60")}
+          >
+            <Trash2 size={15} />
+            Delete account
+          </button>
+        )}
       </div>
+
+      {confirmingDelete && (
+        <div className="rounded-xl border border-rose-400/35 bg-rose-500/[0.1] px-4 py-3.5">
+          <p className="text-[12.5px] leading-relaxed text-rose-100">
+            This permanently deletes the customer together with their transactions, investments and
+            collectibles. It cannot be undone.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2.5">
+            <button
+              type="button"
+              onClick={remove}
+              disabled={busy !== null}
+              className={clsx("btn-danger px-4 py-2 text-[12.5px]", busy !== null && "opacity-60")}
+            >
+              {busy === "delete" ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              {busy === "delete" ? "Deleting…" : "Yes, delete permanently"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(false)}
+              disabled={busy !== null}
+              className="btn-secondary px-4 py-2 text-[12.5px]"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {isSelf && (
         <p className="text-[11.5px] leading-relaxed text-brand-300/55">
-          You cannot suspend your own account or change your own administrator rights.
+          You cannot suspend, delete or change administrator rights on your own account.
         </p>
       )}
     </div>
