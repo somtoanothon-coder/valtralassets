@@ -155,9 +155,11 @@ export default async function AdminOverviewPage() {
           <CircleAlert size={17} className="mt-0.5 shrink-0" />
           <span>
             <strong className="font-semibold">No database connected.</strong> Set{" "}
-            <code className="rounded bg-black/30 px-1.5 py-0.5 text-[12px]">DATABASE_URL</code> to your
-            Neon connection string in Netlify → Site configuration → Environment variables, then
-            redeploy. Until then customers, balances and payments stay empty.
+            <code className="rounded bg-black/30 px-1.5 py-0.5 text-[12px]">NETLIFY_DB_URL</code> by
+            connecting Netlify Database to this site, or set{" "}
+            <code className="rounded bg-black/30 px-1.5 py-0.5 text-[12px]">DATABASE_URL</code> to a
+            PostgreSQL connection string in Netlify environment variables, then redeploy. Until then
+            customers, balances and payments stay empty.
           </span>
         </div>
       )}

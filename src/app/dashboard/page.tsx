@@ -126,10 +126,10 @@ export default async function DashboardPage() {
 
       {!configured && (
         <div className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.07] px-5 py-4 text-[13px] leading-relaxed text-amber-200">
-          <strong className="font-semibold">Database not connected.</strong> Add a{" "}
+          <strong className="font-semibold">Database not connected.</strong> Connect Netlify
+          Database to this site, or set a PostgreSQL connection string in the{" "}
           <code className="rounded bg-black/30 px-1.5 py-0.5 text-[12px]">DATABASE_URL</code>{" "}
-          environment variable (your Neon connection string) in Netlify and redeploy to activate
-          balances, payments and the admin dashboard.
+          environment variable, then redeploy to activate balances, payments and the admin dashboard.
         </div>
       )}
 

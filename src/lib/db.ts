@@ -1,28 +1,36 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
+import postgres from "postgres";
 
 /**
  * Database access layer.
  *
  * Deployed environments use Neon serverless Postgres, configured through
- * DATABASE_URL. Outside production, when no connection string is present, the
- * app falls back to an embedded Postgres (PGlite) persisted under `.data/` so
- * sign-up, sign-in and the admin console work with no external setup. The
- * fallback is never used in production.
+ * DATABASE_URL, or Netlify Database's standard Postgres connection through
+ * NETLIFY_DB_URL. Outside production, when no connection string is present,
+ * the app falls back to an embedded Postgres (PGlite) persisted under `.data/`.
+ * The fallback is never used in production.
  */
 
 let _sql: NeonQueryFunction<false, false> | null = null;
+let _netlifySql: ReturnType<typeof postgres> | null = null;
 let _schemaReady: Promise<void> | null = null;
 
 type Param = string | number | boolean | null | Date;
 
 function configuredUrl(): string | null {
   const url =
+    process.env.NETLIFY_DB_URL ||
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL ||
     process.env.NEON_DATABASE_URL ||
     process.env.NETLIFY_DATABASE_URL ||
     "";
   return url.trim() ? url.trim() : null;
+}
+
+function usesNetlifyDatabase(): boolean {
+  const netlifyUrl = process.env.NETLIFY_DB_URL?.trim();
+  return Boolean(netlifyUrl && configuredUrl() === netlifyUrl);
 }
 
 /**
@@ -47,7 +55,7 @@ export function isDatabaseConfigured(): boolean {
 export class DatabaseNotConfiguredError extends Error {
   constructor() {
     super(
-      "Database is not configured. Add DATABASE_URL (Neon connection string) to your environment variables.",
+      "Database is not configured. Connect Netlify Database or set DATABASE_URL to a PostgreSQL connection string.",
     );
     this.name = "DatabaseNotConfiguredError";
   }
@@ -116,6 +124,20 @@ export async function query<T = Record<string, unknown>>(
     const db = await embeddedClient();
     const result = await db.query(text, params);
     return result.rows as T[];
+  }
+  if (usesNetlifyDatabase()) {
+    const url = configuredUrl();
+    if (!url) throw new DatabaseNotConfiguredError();
+    if (!_netlifySql) {
+      _netlifySql = postgres(url, {
+        max: 1,
+        connect_timeout: 10,
+        idle_timeout: 20,
+        prepare: false,
+      });
+    }
+    const rows = await _netlifySql.unsafe(text, params);
+    return rows as unknown as T[];
   }
   const client = sql();
   const rows = (await client(text, params)) as unknown as T[];
