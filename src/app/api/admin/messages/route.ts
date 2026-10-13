@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureSchema, isDatabaseConfigured, query, queryOne, writeAudit, type UserRow } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { adminMessageEmail, mailerConfigured, sendMail } from "@/lib/mail";
+import { adminMessageEmail, mailerConfigured, mailTransportInfo, sendMail } from "@/lib/mail";
 import { adminMessageSchema, fieldErrors } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +26,7 @@ export async function GET() {
       ok: true,
       messages: [],
       mailer: mailerConfigured() ? "configured" : "missing",
+      transport: mailTransportInfo(),
     });
   }
 
@@ -39,11 +40,68 @@ export async function GET() {
       ok: true,
       messages: rows,
       mailer: mailerConfigured() ? "configured" : "missing",
+      transport: mailTransportInfo(),
     });
   } catch (error) {
     console.error("[admin:messages:get]", error);
     return NextResponse.json({ ok: false, error: "Could not load sent messages." }, { status: 500 });
   }
+}
+
+/**
+ * Admin: prove the configured transport works by sending a diagnostic email to
+ * the signed-in administrator. Returns the transport details and any error, so
+ * a new mail server can be validated in one click.
+ */
+export async function PUT() {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ ok: false, error: "Not authorised." }, { status: 403 });
+
+  const info = mailTransportInfo();
+  if (!info.configured) {
+    return NextResponse.json(
+      {
+        ok: false,
+        transport: info,
+        error:
+          "No mail transport is configured. Set SMTP_HOST (plus SMTP_USER / SMTP_PASS) or RESEND_API_KEY, then redeploy.",
+      },
+      { status: 503 },
+    );
+  }
+
+  const composed = adminMessageEmail({
+    subject: "Delivery test",
+    body: "This is a test message from your operations console.\n\nIf you can read this, email delivery is working.",
+    recipientName: admin.fullName,
+    accountId: admin.accountId,
+  });
+
+  const result = await sendMail({
+    to: admin.email,
+    subject: composed.subject,
+    html: composed.html,
+    text: composed.text,
+  });
+
+  if (!result.ok) {
+    return NextResponse.json(
+      { ok: false, transport: info, error: result.error || "The test message could not be sent." },
+      { status: 502 },
+    );
+  }
+
+  await writeAudit(admin.id, "admin.message.test", "user", admin.id, {
+    transport: info.transport,
+    to: admin.email,
+  });
+
+  return NextResponse.json({
+    ok: true,
+    transport: info,
+    deliveredTo: admin.email,
+    message: `Test message sent to ${admin.email}. Check that inbox and the spam folder.`,
+  });
 }
 
 /**

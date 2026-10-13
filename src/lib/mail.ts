@@ -29,6 +29,31 @@ export function mailerConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY || process.env.SMTP_HOST);
 }
 
+/**
+ * Describes how this deployment sends mail, for the diagnostics panel in the
+ * operations console. Credentials are never included.
+ *
+ * Note: this app cannot deliver mail by connecting to recipients' servers
+ * directly. Netlify runs on AWS, which blocks outbound port 25 for every
+ * Lambda function, so an SMTP relay or hosted mailbox must be configured.
+ */
+export function mailTransportInfo() {
+  const resend = Boolean(process.env.RESEND_API_KEY);
+  const smtp = Boolean(process.env.SMTP_HOST);
+  const port = Number(process.env.SMTP_PORT || 587);
+
+  return {
+    configured: resend || smtp,
+    transport: resend ? "resend" : smtp ? "smtp" : "none",
+    from: FROM_EMAIL,
+    fromName: FROM_NAME,
+    smtpHost: smtp ? process.env.SMTP_HOST! : null,
+    smtpPort: smtp ? port : null,
+    smtpSecure: smtp ? port === 465 : null,
+    smtpAuthenticated: Boolean(process.env.SMTP_USER && process.env.SMTP_PASS),
+  } as const;
+}
+
 export async function sendMail(input: MailInput): Promise<MailResult> {
   const from = `${FROM_NAME} <${FROM_EMAIL}>`;
 

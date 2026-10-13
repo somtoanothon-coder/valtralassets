@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { ensureSchema, isDatabaseConfigured, query, type UserRow } from "@/lib/db";
-import { mailerConfigured } from "@/lib/mail";
+import { mailerConfigured, mailTransportInfo } from "@/lib/mail";
+import { MailDiagnostics } from "@/components/admin/MailDiagnostics";
 import { formatDateTime } from "@/lib/format";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminDatabaseNotice } from "@/components/admin/AdminDatabaseNotice";
@@ -68,7 +69,11 @@ export default async function AdminMessagesPage() {
       {!configured && <AdminDatabaseNotice context="messages cannot be sent." />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
-        <MessageComposer customers={customers} mailerReady={mailerReady} />
+        <div className="space-y-6">
+          <MessageComposer customers={customers} mailerReady={mailerReady} />
+
+          <MailDiagnostics initial={mailTransportInfo()} />
+        </div>
 
         <section className="rounded-2xl border border-white/[0.07] bg-ink-700/50 shadow-card">
           <header className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4">
