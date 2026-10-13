@@ -53,9 +53,24 @@ export async function GET() {
  * the signed-in administrator. Returns the transport details and any error, so
  * a new mail server can be validated in one click.
  */
-export async function PUT() {
+export async function PUT(request: Request) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ ok: false, error: "Not authorised." }, { status: 403 });
+
+  // The administrator's own address defaults the test, but it can be pointed at
+  // any inbox — useful when the admin address is not a deliverable mailbox.
+  let override = "";
+  try {
+    const body = (await request.json()) as { to?: string };
+    override = typeof body?.to === "string" ? body.to.trim() : "";
+  } catch {
+    /* no body sent — use the default recipient */
+  }
+
+  if (override && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(override)) {
+    return NextResponse.json({ ok: false, error: "Enter a valid email address to test with." }, { status: 422 });
+  }
+  const recipient = override || admin.email;
 
   const info = mailTransportInfo();
   if (!info.configured) {
@@ -78,7 +93,7 @@ export async function PUT() {
   });
 
   const result = await sendMail({
-    to: admin.email,
+    to: recipient,
     subject: composed.subject,
     html: composed.html,
     text: composed.text,
@@ -93,14 +108,14 @@ export async function PUT() {
 
   await writeAudit(admin.id, "admin.message.test", "user", admin.id, {
     transport: info.transport,
-    to: admin.email,
+    to: recipient,
   });
 
   return NextResponse.json({
     ok: true,
     transport: info,
-    deliveredTo: admin.email,
-    message: `Test message sent to ${admin.email}. Check that inbox and the spam folder.`,
+    deliveredTo: recipient,
+    message: `Test message sent to ${recipient}. Check that inbox and the spam folder.`,
   });
 }
 

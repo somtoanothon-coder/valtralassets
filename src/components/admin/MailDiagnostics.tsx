@@ -22,17 +22,28 @@ export type MailTransport = {
  * a real test message. Netlify cannot reach recipients directly — AWS blocks
  * outbound port 25 for every Lambda — so a relay must be configured.
  */
-export function MailDiagnostics({ initial }: { initial: MailTransport }) {
+export function MailDiagnostics({
+  initial,
+  defaultRecipient,
+}: {
+  initial: MailTransport;
+  defaultRecipient: string;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
+  const [to, setTo] = useState(defaultRecipient);
 
   async function test() {
     setBusy(true);
     setError(null);
     setSent(null);
     try {
-      const res = await fetch("/api/admin/messages", { method: "PUT" });
+      const res = await fetch("/api/admin/messages", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: to.trim() }),
+      });
       const data = (await res.json()) as { ok?: boolean; error?: string; message?: string };
       if (!res.ok || !data.ok) {
         setError(data.error || "The test message could not be sent.");
@@ -139,6 +150,23 @@ export function MailDiagnostics({ initial }: { initial: MailTransport }) {
         </p>
       )}
 
+      <label className="label mt-4" htmlFor="mail-test-recipient">
+        Send the test to
+      </label>
+      <input
+        id="mail-test-recipient"
+        className="input"
+        type="email"
+        inputMode="email"
+        autoComplete="off"
+        value={to}
+        onChange={(event) => setTo(event.target.value)}
+      />
+      <p className="mt-1.5 text-[11.5px] leading-relaxed text-brand-300/55">
+        Use an inbox you can open right now. The administrator address is only a sign-in
+        identifier and need not be a deliverable mailbox.
+      </p>
+
       <button
         type="button"
         onClick={test}
@@ -149,7 +177,7 @@ export function MailDiagnostics({ initial }: { initial: MailTransport }) {
         )}
       >
         {busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-        {busy ? "Sending test…" : "Send test email to me"}
+        {busy ? "Sending test…" : "Send test email"}
       </button>
     </section>
   );

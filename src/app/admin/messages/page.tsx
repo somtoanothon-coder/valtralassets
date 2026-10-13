@@ -72,7 +72,7 @@ export default async function AdminMessagesPage() {
         <div className="space-y-6">
           <MessageComposer customers={customers} mailerReady={mailerReady} />
 
-          <MailDiagnostics initial={mailTransportInfo()} />
+          <MailDiagnostics initial={mailTransportInfo()} defaultRecipient={admin.email} />
         </div>
 
         <section className="rounded-2xl border border-white/[0.07] bg-ink-700/50 shadow-card">
