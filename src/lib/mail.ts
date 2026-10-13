@@ -47,9 +47,12 @@ export function mailTransportInfo() {
     transport: resend ? "resend" : smtp ? "smtp" : "none",
     from: FROM_EMAIL,
     fromName: FROM_NAME,
+    /** Customer replies land here — the support mailbox. */
+    replyTo: CONTACT.supportEmail,
     smtpHost: smtp ? process.env.SMTP_HOST! : null,
     smtpPort: smtp ? port : null,
     smtpSecure: smtp ? port === 465 : null,
+    smtpUser: process.env.SMTP_USER || null,
     smtpAuthenticated: Boolean(process.env.SMTP_USER && process.env.SMTP_PASS),
   } as const;
 }

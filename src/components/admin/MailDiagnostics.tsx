@@ -9,9 +9,11 @@ export type MailTransport = {
   transport: "resend" | "smtp" | "none";
   from: string;
   fromName: string;
+  replyTo: string;
   smtpHost: string | null;
   smtpPort: number | null;
   smtpSecure: boolean | null;
+  smtpUser: string | null;
   smtpAuthenticated: boolean;
 };
 
@@ -90,7 +92,27 @@ export function MailDiagnostics({ initial }: { initial: MailTransport }) {
           <dt className="text-brand-300/65">Sends as</dt>
           <dd className="truncate font-semibold text-brand-100">{initial.from}</dd>
         </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-brand-300/65">Replies go to</dt>
+          <dd className="truncate font-semibold text-brand-100">{initial.replyTo}</dd>
+        </div>
+        {initial.smtpUser && (
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-brand-300/65">Signs in as</dt>
+            <dd className="truncate font-semibold text-brand-100">{initial.smtpUser}</dd>
+          </div>
+        )}
       </dl>
+
+      {ready && !initial.smtpAuthenticated && initial.transport === "smtp" && (
+        <p className="mt-4 rounded-xl border border-amber-400/25 bg-amber-400/[0.07] px-4 py-3 text-[12px] leading-relaxed text-amber-100">
+          No SMTP username and password are set. Most mail servers reject unauthenticated
+          connections on port 587 — add{" "}
+          <code className="rounded bg-black/30 px-1.5 py-0.5 text-[11.5px]">SMTP_USER</code> and{" "}
+          <code className="rounded bg-black/30 px-1.5 py-0.5 text-[11.5px]">SMTP_PASS</code> if
+          delivery fails.
+        </p>
+      )}
 
       {!ready && (
         <p className="mt-4 rounded-xl border border-amber-400/25 bg-amber-400/[0.07] px-4 py-3 text-[12px] leading-relaxed text-amber-100">
