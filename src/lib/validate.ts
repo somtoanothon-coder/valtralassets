@@ -116,6 +116,30 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
+/** An email written by an administrator and sent from the operations console. */
+export const adminMessageSchema = z.object({
+  recipientEmail: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(5, "Choose a recipient")
+    .max(160, "That email is too long")
+    .email("Enter a valid email address"),
+  recipientUserId: z.string().trim().uuid().optional().or(z.literal("")),
+  subject: z
+    .string()
+    .trim()
+    .min(2, "Add a subject")
+    .max(160, "Keep the subject under 160 characters"),
+  body: z
+    .string()
+    .trim()
+    .min(2, "Write your message")
+    .max(8_000, "Keep the message under 8000 characters"),
+});
+
+export type AdminMessageInput = z.infer<typeof adminMessageSchema>;
+
 export const paymentSchema = z.object({
   amount: z.coerce
     .number({ invalid_type_error: "Enter the amount you sent" })

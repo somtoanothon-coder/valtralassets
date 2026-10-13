@@ -22,7 +22,9 @@ import {
 } from "@/lib/format";
 import { QuickCredit } from "@/components/admin/AdminClient";
 import { CustomerStatusControls } from "@/components/admin/CustomerStatusControls";
+import { MessageComposer } from "@/components/admin/MessageComposer";
 import { AdminDatabaseNotice } from "@/components/admin/AdminDatabaseNotice";
+import { mailerConfigured } from "@/lib/mail";
 import { ArrowRight, Coins, LayoutDashboard, PieChart, Users } from "@/components/ui/icons";
 
 export const metadata: Metadata = {
@@ -325,6 +327,12 @@ export default async function AdminCustomerPage({
               />
             </div>
           </section>
+
+          <MessageComposer
+            presetRecipient={{ email: user.email, name: user.full_name }}
+            mailerReady={mailerConfigured()}
+            compact
+          />
 
           <section className="rounded-2xl border border-white/[0.07] bg-ink-700/50 shadow-card">
             <header className="border-b border-white/[0.07] px-5 py-4">

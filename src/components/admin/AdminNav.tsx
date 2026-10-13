@@ -11,6 +11,7 @@ import {
   ChevronDown,
   LayoutDashboard,
   LogOut,
+  Mail,
   Settings,
   ShieldCheck,
   Users,
@@ -21,6 +22,7 @@ const LINKS = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/admin/payments", label: "Payments", icon: Wallet },
   { href: "/admin/users", label: "Customers", icon: Users },
+  { href: "/admin/messages", label: "Messages", icon: Mail },
   { href: "/admin/settings", label: "Wallet addresses", icon: Settings },
 ];
 

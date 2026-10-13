@@ -339,3 +339,54 @@ export function adminNewUserEmail(data: {
 export function walletsTableText(): string {
   return WALLETS.map((w) => `${w.asset} · ${w.network}: ${w.address}`).join("\n");
 }
+
+export type AdminMessagePayload = {
+  subject: string;
+  body: string;
+  recipientName?: string | null;
+  accountId?: string | null;
+};
+
+/**
+ * A message written by an administrator in the operations console. The author's
+ * line breaks are preserved and every interpolated value is escaped, so message
+ * text cannot inject markup into the email.
+ */
+export function adminMessageEmail(data: AdminMessagePayload) {
+  const greeting = data.recipientName
+    ? `Hello ${esc(data.recipientName.split(" ")[0])},`
+    : "Hello,";
+
+  const paragraphs = data.body
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => p(esc(block).replace(/\n/g, "<br/>")));
+
+  const html = shell(`
+    ${h1(esc(data.subject))}
+    ${p(greeting)}
+    ${paragraphs.join("")}
+    ${
+      data.accountId
+        ? panel(row("Account ID", esc(data.accountId)))
+        : ""
+    }
+    ${p(`Need anything else? Reply to this email or write to <a href="mailto:${CONTACT.supportEmail}" style="color:#4FB8B4;text-decoration:none;">${CONTACT.supportEmail}</a>.`)}
+  `);
+
+  const text = [
+    data.subject,
+    "",
+    data.recipientName ? `Hello ${data.recipientName.split(" ")[0]},` : "Hello,",
+    "",
+    data.body,
+    "",
+    data.accountId ? `Account ID: ${data.accountId}` : "",
+    `Support: ${CONTACT.supportEmail}`,
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
+
+  return { subject: data.subject, html, text };
+}

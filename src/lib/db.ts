@@ -257,6 +257,22 @@ async function migrate(): Promise<void> {
   await client`CREATE INDEX IF NOT EXISTS login_rate_limits_updated_idx ON login_rate_limits (updated_at)`;
 
   await client`
+    CREATE TABLE IF NOT EXISTS admin_messages (
+      id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      sender_id         UUID REFERENCES users(id) ON DELETE SET NULL,
+      recipient_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      recipient_email   TEXT NOT NULL,
+      subject           TEXT NOT NULL,
+      body              TEXT NOT NULL,
+      status            TEXT NOT NULL DEFAULT 'pending',
+      error             TEXT,
+      provider_id       TEXT,
+      created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await client`CREATE INDEX IF NOT EXISTS admin_messages_created_idx ON admin_messages (created_at DESC)`;
+
+  await client`
     CREATE TABLE IF NOT EXISTS transactions (
       id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
